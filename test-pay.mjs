@@ -10,7 +10,7 @@ const client = new x402Client();
 registerExactEvmScheme(client, { signer });
 
 const api = wrapAxiosWithPayment(
-  axios.create({ baseURL: "http://localhost:4402" }),
+  axios.create({ baseURL: "https://optim-x402-gateway-production.up.railway.app" }),
   client,
   { onPaymentRequired: (req) => console.log("Payment required for:", req.url) }
 );
