@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// OptimEngine Solver Bridge v2
-// Calls OptimEngine REST endpoints directly
+// OptimEngine Solver Bridge v3
+// Correct parameter_path syntax: jobs[ID].tasks[ID].field
 // ══════════════════════════════════════════════════════════════
 
 const OPTIMENGINE_URL = process.env.OPTIMENGINE_URL || "https://optim-engine-production.up.railway.app";
@@ -13,17 +13,17 @@ async function callEngine(endpoint, body) {
   });
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`OptimEngine ${endpoint} returned ${resp.status}: ${text.slice(0, 200)}`);
+    throw new Error(`OptimEngine ${endpoint} returned ${resp.status}: ${text.slice(0, 300)}`);
   }
   return resp.json();
 }
 
 /**
- * Portfolio Optimization — uses Pareto on scheduling as proxy
- * Demonstrates multi-objective trade-off: makespan vs tardiness
+ * Multi-Objective Pareto Optimization
+ * Trade-off analysis: makespan vs tardiness vs machine utilization
  */
 export async function solvePortfolio(input) {
-  const result = await callEngine("/optimize_pareto", {
+  const defaultRequest = {
     solver_type: "scheduling",
     objectives: [
       { name: "minimize_makespan", weight: 1 },
@@ -38,16 +38,18 @@ export async function solvePortfolio(input) {
       machines: [{ machine_id: "M1" }, { machine_id: "M2" }, { machine_id: "M3" }],
     },
     num_points: 5,
-  });
-  return result;
+  };
+
+  const request = input && input.solver_type ? input : defaultRequest;
+  return await callEngine("/optimize_pareto", request);
 }
 
 /**
- * VPP Stochastic Optimization — Monte Carlo on scheduling
- * Simulates uncertainty in task durations (like energy generation variability)
+ * Stochastic Optimization with Monte Carlo CVaR
+ * Uncertainty in task durations — models production variability, energy generation uncertainty
  */
 export async function solveVPP(input) {
-  const result = await callEngine("/optimize_stochastic", {
+  const defaultRequest = {
     solver_type: "scheduling",
     solver_request: {
       jobs: [
@@ -59,20 +61,23 @@ export async function solveVPP(input) {
       objective: "minimize_makespan",
     },
     stochastic_parameters: [
-      { parameter_path: "jobs.0.tasks.0.duration", distribution: "normal", mean: 5, std_dev: 2 },
-      { parameter_path: "jobs.1.tasks.0.duration", distribution: "uniform", min_value: 2, max_value: 6 },
+      { parameter_path: "jobs[Solar].tasks[generate].duration", distribution: "normal", mean: 5, std_dev: 2 },
+      { parameter_path: "jobs[Battery].tasks[charge].duration", distribution: "uniform", min_value: 2, max_value: 6 },
     ],
-    num_scenarios: 20,
+    num_scenarios: 50,
     optimize_for: "cvar_95",
-  });
-  return result;
+  };
+
+  const request = input && input.solver_type ? input : defaultRequest;
+  return await callEngine("/optimize_stochastic", request);
 }
 
 /**
- * Flexible Job-Shop Scheduling — direct call
+ * Flexible Job-Shop Scheduling
+ * Direct scheduling with setup times, availability windows, quality constraints
  */
 export async function solveSchedule(input) {
-  const defaultInput = {
+  const defaultRequest = {
     jobs: [
       { job_id: "J1", tasks: [{ task_id: "O1", duration: 3, eligible_machines: ["M1", "M2"] }, { task_id: "O2", duration: 2, eligible_machines: ["M2", "M3"] }] },
       { job_id: "J2", tasks: [{ task_id: "O3", duration: 4, eligible_machines: ["M1", "M3"] }, { task_id: "O4", duration: 1, eligible_machines: ["M2"] }] },
@@ -80,8 +85,9 @@ export async function solveSchedule(input) {
     machines: [{ machine_id: "M1" }, { machine_id: "M2" }, { machine_id: "M3" }],
     objective: "minimize_makespan",
   };
-  const result = await callEngine("/optimize_schedule", input && Object.keys(input).length > 0 ? input : defaultInput);
-  return result;
+
+  const request = input && Object.keys(input).length > 0 && input.jobs ? input : defaultRequest;
+  return await callEngine("/optimize_schedule", request);
 }
 
 /**
