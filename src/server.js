@@ -9,7 +9,7 @@ import express from "express";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { createCdpAuthHeaders } from "@coinbase/x402";
+import { createFacilitatorConfig } from "@coinbase/x402";
 import { solvePortfolio, solveVPP, solveSchedule, healthCheck } from "./solvers.js";
 
 // ── Configuration ──
@@ -26,15 +26,9 @@ if (!WALLET) {
 const cdpKeyId = process.env.CDP_API_KEY_ID;
 const cdpKeySecret = process.env.CDP_API_KEY_SECRET;
 
-const facilitatorConfig = {
-  url: (cdpKeyId && cdpKeySecret)
-    ? "https://api.cdp.coinbase.com/platform/v2/x402"
-    : "https://x402.org/facilitator",
-};
-
-if (cdpKeyId && cdpKeySecret) {
-  facilitatorConfig.createAuthHeaders = createCdpAuthHeaders(cdpKeyId, cdpKeySecret);
-}
+const facilitatorConfig = (cdpKeyId && cdpKeySecret)
+  ? createFacilitatorConfig(cdpKeyId, cdpKeySecret)
+  : { url: "https://x402.org/facilitator" };
 
 const facilitatorClient = new HTTPFacilitatorClient(facilitatorConfig);
 const server = new x402ResourceServer(facilitatorClient)
