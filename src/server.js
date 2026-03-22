@@ -1,12 +1,15 @@
 // ══════════════════════════════════════════════════════════════
-// OptimEngine x402 Gateway — Server
+// OptimEngine x402 Gateway — Server v2
 // ERC-8004 Agent #22518 | Base L2
+// Uses @x402/express v2 + @coinbase/x402 CDP facilitator
 // ══════════════════════════════════════════════════════════════
 
 import "dotenv/config";
 import express from "express";
-import { paymentMiddleware } from "x402-express";
-import { facilitator, createFacilitatorConfig } from "@coinbase/x402";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { createCdpAuthHeaders } from "@coinbase/x402";
 import { solvePortfolio, solveVPP, solveSchedule, healthCheck } from "./solvers.js";
 
 // ── Configuration ──
@@ -20,13 +23,22 @@ if (!WALLET) {
 }
 
 // ── Facilitator Setup ──
-// If CDP keys are set, use authenticated facilitator; otherwise default
 const cdpKeyId = process.env.CDP_API_KEY_ID;
 const cdpKeySecret = process.env.CDP_API_KEY_SECRET;
 
-const facilitatorConfig = (cdpKeyId && cdpKeySecret)
-  ? createFacilitatorConfig(cdpKeyId, cdpKeySecret)
-  : facilitator;
+const facilitatorConfig = {
+  url: (cdpKeyId && cdpKeySecret)
+    ? "https://api.cdp.coinbase.com/platform/v2/x402"
+    : "https://x402.org/facilitator",
+};
+
+if (cdpKeyId && cdpKeySecret) {
+  facilitatorConfig.createAuthHeaders = createCdpAuthHeaders(cdpKeyId, cdpKeySecret);
+}
+
+const facilitatorClient = new HTTPFacilitatorClient(facilitatorConfig);
+const server = new x402ResourceServer(facilitatorClient)
+  .register(NETWORK, new ExactEvmScheme());
 
 // ── Express App ──
 const app = express();
@@ -35,24 +47,39 @@ app.use(express.json());
 // ── Payment-Protected Routes ──
 const paidRoutes = {
   "POST /solve/portfolio": {
-    price: "$0.10",
-    network: NETWORK,
+    accepts: [{
+      scheme: "exact",
+      network: NETWORK,
+      price: "$0.10",
+      payTo: WALLET,
+    }],
     description: "Multi-objective portfolio optimization (Pareto + CVaR Monte Carlo)",
+    mimeType: "application/json",
   },
   "POST /solve/vpp": {
-    price: "$0.25",
-    network: NETWORK,
+    accepts: [{
+      scheme: "exact",
+      network: NETWORK,
+      price: "$0.25",
+      payTo: WALLET,
+    }],
     description: "VPP stochastic optimization — battery dispatch under uncertainty",
+    mimeType: "application/json",
   },
   "POST /solve/schedule": {
-    price: "$0.15",
-    network: NETWORK,
+    accepts: [{
+      scheme: "exact",
+      network: NETWORK,
+      price: "$0.15",
+      payTo: WALLET,
+    }],
     description: "Flexible Job-Shop Scheduling with setup times and quality constraints",
+    mimeType: "application/json",
   },
 };
 
-// Apply x402 middleware
-app.use(paymentMiddleware(WALLET, paidRoutes, facilitatorConfig));
+// Apply x402 v2 middleware
+app.use(paymentMiddleware(paidRoutes, server));
 
 // ── Free Routes ──
 app.get("/health", async (_req, res) => {
@@ -60,14 +87,14 @@ app.get("/health", async (_req, res) => {
     const engineHealth = await healthCheck();
     res.json({
       gateway: "operational",
-      version: "1.0.0",
+      version: "2.0.0",
       agent: "ERC-8004 #22518",
       network: NETWORK,
       wallet: WALLET,
       engine: engineHealth,
       endpoints: Object.entries(paidRoutes).map(([route, config]) => {
         const [method, path] = route.split(" ");
-        return { method, path, price: config.price, description: config.description };
+        return { method, path, price: config.accepts[0].price, description: config.description };
       }),
     });
   } catch (err) {
@@ -84,7 +111,7 @@ app.get("/.well-known/x402", (_req, res) => {
     version: "9.0.0",
     endpoints: Object.entries(paidRoutes).map(([route, config]) => {
       const [method, path] = route.split(" ");
-      return { method, path, price: config.price, network: NETWORK, payTo: WALLET, description: config.description };
+      return { method, path, ...config };
     }),
   });
 });
@@ -118,13 +145,14 @@ app.post("/solve/schedule", async (req, res) => {
 });
 
 // ── Start ──
-const networkLabel = NETWORK.includes("8453") && !NETWORK.includes("84532") ? "Base MAINNET" : "Base Sepolia (testnet)";
+const isMainnet = NETWORK === "base" || NETWORK === "eip155:8453";
+const networkLabel = isMainnet ? "Base MAINNET" : "Base Sepolia (testnet)";
 const authLabel = (cdpKeyId && cdpKeySecret) ? "CDP (authenticated)" : "x402.org (public)";
 
 app.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════════╗
-║  OptimEngine x402 Gateway v1.0.0                        ║
+║  OptimEngine x402 Gateway v2.0.0                        ║
 ║  ERC-8004 Agent #22518 | Base L2                        ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Server:      http://localhost:${PORT}                    ║
