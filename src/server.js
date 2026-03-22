@@ -11,6 +11,7 @@ import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { createFacilitatorConfig } from "@coinbase/x402";
 import * as solvers from "./solvers.js";
+import { registerDocsRoutes } from "./docs.js";
 
 const PORT = process.env.PORT || 4402;
 const WALLET = process.env.WALLET_ADDRESS;
@@ -83,6 +84,9 @@ app.get("/.well-known/x402", (_req, res) => {
     }),
   });
 });
+
+// ── API Documentation (free) ──
+registerDocsRoutes(app);
 
 // ── L1 Core Solvers ──
 app.post("/solve/schedule", async (req, res) => {
