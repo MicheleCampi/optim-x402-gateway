@@ -12,6 +12,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { createFacilitatorConfig } from "@coinbase/x402";
 import * as solvers from "./solvers.js";
 import { registerDocsRoutes } from "./docs.js";
+import { trackRequest, trackPayment, getStats } from "./stats.js";
 
 const PORT = process.env.PORT || 4402;
 const WALLET = process.env.WALLET_ADDRESS;
@@ -54,6 +55,8 @@ const paidRoutes = {
 app.use(paymentMiddleware(paidRoutes, server));
 
 // ── Free Routes ──
+app.get("/stats", (_req, res) => { res.json(getStats()); });
+
 app.get("/health", async (_req, res) => {
   try {
     const engineHealth = await solvers.healthCheck();
@@ -90,50 +93,59 @@ registerDocsRoutes(app);
 
 // ── L1 Core Solvers ──
 app.post("/solve/schedule", async (req, res) => {
-  try { res.json({ success: true, solver: "fjsp", result: await solvers.solveSchedule(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveSchedule(req.body); trackRequest("/solve/schedule", 200); trackPayment(true, 0.15, "x402-paid", "cdp", "/solve/schedule", Date.now()-t0); res.json({ success: true, solver: "fjsp", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post("/solve/routing", async (req, res) => {
-  try { res.json({ success: true, solver: "cvrptw", result: await solvers.solveRouting(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveRouting(req.body); trackRequest("/solve/routing", 200); trackPayment(true, 0.20, "x402-paid", "cdp", "/solve/routing", Date.now()-t0); res.json({ success: true, solver: "cvrptw", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post("/solve/packing", async (req, res) => {
-  try { res.json({ success: true, solver: "bin_packing", result: await solvers.solvePacking(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solvePacking(req.body); trackRequest("/solve/packing", 200); trackPayment(true, 0.10, "x402-paid", "cdp", "/solve/packing", Date.now()-t0); res.json({ success: true, solver: "bin_packing", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── L2 Risk & Uncertainty ──
 app.post("/solve/pareto", async (req, res) => {
-  try { res.json({ success: true, solver: "pareto", result: await solvers.solvePareto(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solvePareto(req.body); trackRequest("/solve/pareto", 200); trackPayment(true, 0.20, "x402-paid", "cdp", "/solve/pareto", Date.now()-t0); res.json({ success: true, solver: "pareto", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post("/solve/stochastic", async (req, res) => {
-  try { res.json({ success: true, solver: "monte_carlo_cvar", result: await solvers.solveStochastic(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveStochastic(req.body); trackRequest("/solve/stochastic", 200); trackPayment(true, 0.25, "x402-paid", "cdp", "/solve/stochastic", Date.now()-t0); res.json({ success: true, solver: "monte_carlo_cvar", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post("/solve/robust", async (req, res) => {
-  try { res.json({ success: true, solver: "robust", result: await solvers.solveRobust(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveRobust(req.body); trackRequest("/solve/robust", 200); trackPayment(true, 0.20, "x402-paid", "cdp", "/solve/robust", Date.now()-t0); res.json({ success: true, solver: "robust", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── L3 Intelligence ──
 app.post("/solve/sensitivity", async (req, res) => {
-  try { res.json({ success: true, solver: "sensitivity", result: await solvers.solveSensitivity(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveSensitivity(req.body); trackRequest("/solve/sensitivity", 200); trackPayment(true, 0.15, "x402-paid", "cdp", "/solve/sensitivity", Date.now()-t0); res.json({ success: true, solver: "sensitivity", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post("/solve/prescriptive", async (req, res) => {
-  try { res.json({ success: true, solver: "prescriptive", result: await solvers.solvePrescriptive(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solvePrescriptive(req.body); trackRequest("/solve/prescriptive", 200); trackPayment(true, 0.30, "x402-paid", "cdp", "/solve/prescriptive", Date.now()-t0); res.json({ success: true, solver: "prescriptive", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Validation ──
 app.post("/solve/validate", async (req, res) => {
-  try { res.json({ success: true, solver: "validate", result: await solvers.solveValidate(req.body) }); }
+  const t0 = Date.now();
+  try { const r = await solvers.solveValidate(req.body); trackRequest("/solve/validate", 200); trackPayment(true, 0.05, "x402-paid", "cdp", "/solve/validate", Date.now()-t0); res.json({ success: true, solver: "validate", result: r }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
