@@ -32,7 +32,7 @@ const server = new x402ResourceServer(facilitatorClient)
   .register(NETWORK, new ExactEvmScheme());
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "100kb" }));
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, message: { status: 429, message: "Too many requests. Max 60/minute." } });
 app.use("/solve", limiter);
