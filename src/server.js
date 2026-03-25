@@ -6,6 +6,7 @@
 
 import "dotenv/config";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import express from "express";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -32,6 +33,7 @@ const server = new x402ResourceServer(facilitatorClient)
   .register(NETWORK, new ExactEvmScheme());
 
 const app = express();
+app.use(helmet());
 app.use(express.json({ limit: "100kb" }));
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, message: { status: 429, message: "Too many requests. Max 60/minute." } });
