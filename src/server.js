@@ -5,6 +5,7 @@
 // ══════════════════════════════════════════════════════════════
 
 import "dotenv/config";
+import rateLimit from "express-rate-limit";
 import express from "express";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -32,6 +33,10 @@ const server = new x402ResourceServer(facilitatorClient)
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
+
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, message: { status: 429, message: "Too many requests. Max 60/minute." } });
+app.use("/solve", limiter);
+app.use("/stats", rateLimit({ windowMs: 60 * 1000, max: 10 }));
 
 // ── Pricing tiers ──
 const accept = (price) => [{ scheme: "exact", network: NETWORK, price, payTo: WALLET }];
