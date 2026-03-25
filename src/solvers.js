@@ -9,7 +9,7 @@ const OPTIMENGINE_URL = process.env.OPTIMENGINE_URL || "https://optim-engine-pro
 async function callEngine(endpoint, body) {
   const resp = await fetch(`${OPTIMENGINE_URL}${endpoint}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Engine-Key": process.env.ENGINE_API_KEY || "" },
     body: JSON.stringify(body),
   });
   if (!resp.ok) {
